@@ -4,6 +4,11 @@ using System.Text.Json;
 using ProducerImplementation.Models;
 using backgroundImplementation.Data;
 using Kafkaproducerimplemenation.DTO;
+using Microsoft.EntityFrameworkCore;
+using static System.Net.Mime.MediaTypeNames;
+using Kafkaproducerimplemenation.GenaricPagination;
+using static Confluent.Kafka.ConfigPropertyNames;
+using Producer = ProducerImplementation.ProducerService.Producer;
 
 namespace ProducerImplementation.Controllers
 {
@@ -37,6 +42,44 @@ namespace ProducerImplementation.Controllers
 
             return Ok("Prince added successfully.");
         }
+
+        [HttpGet]
+        [Route("GetAllprinceUsingOffset")]
+        public async Task<IActionResult> GetAllprince(int pagenumber,int pagesize)
+        {
+            //var pageelements = 5f;
+            //var allpages = Math.Ceiling(_application.Princes.Count() / pageelements);
+            //var princes=await _application.Princes.Skip((pagenumber-1)*(int)pageelements).Take((int)pageelements).ToListAsync();
+            //return Ok(new
+            //{
+            //    currentpage=pagenumber,
+            //    AllPages=allpages,
+            //    princes=princes
+            //});
+            var Princes=  _application.Princes.AsQueryable();
+            var paginatedList = await PaginatedList<prince>.paginatedList(Princes, pagenumber, pagesize);
+            return Ok(paginatedList);
+        }
+
+        [HttpGet]
+        [Route("GetAllPrinceUsingKeySet")]
+        public async Task<IActionResult> GetAllPrinceUsingKeySet(int? lastId = null, int pageSize = 10)
+        {
+            IQueryable<prince> query = _application.Princes.OrderBy(p => p.Id);
+
+            if (lastId.HasValue)
+            {
+                query = query.Where(p => p.Id > lastId.Value);
+            }
+
+            var items = await query.Take(pageSize).ToListAsync();
+            var hasNextPage = items.Count == pageSize;
+
+            var result = new PaginatedListKeyset<prince>(items, hasNextPage);
+
+            return Ok(result);
+        }
+
     }
 }
 
